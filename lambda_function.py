@@ -1,5 +1,5 @@
 import logging
-from telegram import Update, Bot
+from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
 # Configuración de logging
@@ -49,10 +49,5 @@ async def main():
     application.add_handler(MessageHandler(filters.PHOTO, handle_message))  # Detecta mensajes con foto
 
     # Ejecutar el bot para recibir mensajes
-    await application.run_polling()
-
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
-
+    await application.run_poll_
 
