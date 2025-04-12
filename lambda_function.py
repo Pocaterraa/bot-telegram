@@ -7,13 +7,16 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# Aplica nest_asyncio para evitar errores de loop
 nest_asyncio.apply()
-
-# Configura el logging
 logging.basicConfig(level=logging.INFO)
 
-# Firma con enlaces embebidos
+# IDs de los canales autorizados
+ALLOWED_CHANNEL_IDS = [
+    -1001234567890,  # Reemplaza con tus propios IDs
+    -1009876543210,
+]
+
+# Firma embebida
 FOOTER = (
     "➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
     '<a href="http://t.me/exeiolinks">➡️ 𝘿𝙊𝙒𝙉𝙇𝙊𝘼𝘿 𝙏𝙐𝙏𝙊𝙍𝙄𝘼𝙇𝙎</a>\n\n'
@@ -22,41 +25,58 @@ FOOTER = (
     "➖➖➖➖➖➖➖➖➖➖➖➖➖➖"
 )
 
-# Manejador de mensajes en canales
+# Manejador de mensajes de canales
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.channel_post:
-        message = update.channel_post
-        if not message.text:
-            return
+    if not update.channel_post:
+        return
 
-        new_text = f"{message.text}\n\n{FOOTER}"
+    message = update.channel_post
+    chat_id = message.chat_id
 
-        try:
+    # Validar si el canal está autorizado
+    if chat_id not in ALLOWED_CHANNEL_IDS:
+        logging.info(f"Canal no autorizado: {chat_id}")
+        return
+
+    # Obtener texto o caption
+    original_text = message.text or message.caption
+    if not original_text:
+        return
+
+    new_text = f"{original_text}\n\n{FOOTER}"
+
+    try:
+        if message.text:
+            # Mensaje de solo texto
             await context.bot.edit_message_text(
-                chat_id=message.chat_id,
+                chat_id=chat_id,
                 message_id=message.message_id,
                 text=new_text,
                 parse_mode=ParseMode.HTML,
                 disable_web_page_preview=True,
             )
-            logging.info(f"Mensaje editado en canal: {message.chat.title}")
-        except Exception as e:
-            logging.error(f"Error al editar el mensaje: {e}")
+        elif message.caption:
+            # Mensaje con multimedia y caption
+            await context.bot.edit_message_caption(
+                chat_id=chat_id,
+                message_id=message.message_id,
+                caption=new_text,
+                parse_mode=ParseMode.HTML,
+            )
+        logging.info(f"Mensaje editado en canal {chat_id}")
+    except Exception as e:
+        logging.error(f"Error al editar el mensaje: {e}")
 
 # Lambda handler
 def lambda_handler(event, context):
-    logging.basicConfig(level=logging.INFO)
     logging.info("Evento recibido: %s", json.dumps(event))
 
-    # Si es un webhook de Telegram
     if "body" in event:
         update_data = json.loads(event["body"])
 
-        # Crear la aplicación de Telegram
         app = ApplicationBuilder().token(os.getenv("TELEGRAM_TOKEN")).build()
         app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_message))
 
-        # Usar asyncio.run para ejecutar la función asincrónica en Lambda
         asyncio.run(run_app(app, update_data))
 
     return {
