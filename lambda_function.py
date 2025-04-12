@@ -1,77 +1,58 @@
-from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    ContextTypes,
-    MessageHandler,
-    filters,
-)
 import logging
-import os
-from fastapi import FastAPI, Request
-import uvicorn
+from telegram import Update, Bot
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
-# Configuración básica
-logging.basicConfig(level=logging.INFO)
+# Configuración de logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_DOMAIN = os.getenv("WEBHOOK_DOMAIN")  # Ej: https://mi-app.onrender.com
-WEBHOOK_PATH = "/webhook"
-WEBHOOK_URL = f"{WEBHOOK_DOMAIN}{WEBHOOK_PATH}"
+# Definir tu token de bot de Telegram
+TOKEN = "YOUR_BOT_TOKEN"
 
-FOOTER_TEXT = (
-    "\n\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-    "[➡️ 𝘿𝙊𝙒𝙉𝙇𝙊𝘼𝘿 𝙏𝙐𝙏𝙊𝙍𝙄𝘼𝙇𝙎](http://t.me/exeiolinks)\n\n"
-    "[❤️ 𝙈𝙊𝙍𝙀 𝘾𝙃𝘼𝙉𝙉𝙀𝙇𝙎](http://t.me/packscereza)\n\n"
-    "[💛 Tired of ads? Buy the VIP and get rid of them NOW.](https://freefans.sell.app/product/telegram-membership)\n"
-    "➖➖➖➖➖➖➖➖➖➖➖➖➖➖"
-)
+# Función para iniciar el bot (comando /start)
+async def start(update: Update, context: CallbackContext):
+    await update.message.reply_text("¡Hola! Soy un bot que modifica mensajes.")
 
-app = FastAPI()
-telegram_app = ApplicationBuilder().token(BOT_TOKEN).build()
+# Función para manejar los mensajes
+async def handle_message(update: Update, context: CallbackContext):
+    if update.message.text:  # Si el mensaje tiene texto
+        await update.message.reply_text(f"Texto recibido: {update.message.text}")
+    elif update.message.photo:  # Si el mensaje tiene una foto
+        await update.message.reply_text(f"Imagen recibida.")
+    # Aquí puedes añadir más lógica para manejar otros tipos de media si es necesario
 
-@telegram_app.post_init
-async def setup_webhook(application):
-    await application.bot.set_webhook(url=WEBHOOK_URL)
-    logger.info(f"Webhook establecido en {WEBHOOK_URL}")
+# Función para agregar los enlaces embebidos al mensaje
+async def add_links(update: Update, context: CallbackContext):
+    # El texto que quieres añadir al final del mensaje
+    append_text = "\n\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"\
+                  "[➡️ 𝘿𝙊𝙒𝙉𝙇𝙊𝘼𝘿 𝙏𝙐𝙏𝙊𝙍𝙄𝘼𝙇𝙎](http://t.me/exeiolinks)\n\n"\
+                  "[❤️ 𝙈𝙊𝙍𝙀 𝘾𝙃𝘼𝙉𝙉𝙀𝙇𝙎](http://t.me/packscereza)\n\n"\
+                  "[💛 Tired of ads? Buy the VIP and get rid of them NOW.](https://freefans.sell.app/product/telegram-membership)\n"\
+                  "➖➖➖➖➖➖➖➖➖➖➖➖➖➖"
+    
+    # Aquí puedes revisar si el mensaje tiene media y modificarlo
+    if update.message.text:
+        # Modificar el mensaje de texto
+        new_text = update.message.text + append_text
+        await update.message.edit_text(new_text)
+    elif update.message.photo:
+        # Modificar el mensaje con foto (también puedes añadir texto con los enlaces embebidos)
+        await update.message.edit_caption(caption="Imagen con enlaces embebidos\n" + append_text)
 
-async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.channel_post
-    if not message:
-        return
+# Crear la aplicación y agregar los manejadores
+async def main():
+    application = Application.builder().token(TOKEN).build()
 
-    try:
-        if message.text:
-            # Mensaje de solo texto → lo editamos
-            new_text = f"{message.text}{FOOTER_TEXT}"
-            await context.bot.edit_message_text(
-                chat_id=message.chat_id,
-                message_id=message.message_id,
-                text=new_text,
-                parse_mode="Markdown"
-            )
-        elif message.photo or message.video or message.document:
-            # Mensaje con media → respondemos debajo
-            await context.bot.send_message(
-                chat_id=message.chat_id,
-                text=FOOTER_TEXT,
-                reply_to_message_id=message.message_id,
-                parse_mode="Markdown"
-            )
-    except Exception as e:
-        logger.error(f"Error al manejar el mensaje: {e}")
+    # Agregar manejadores
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT, handle_message))  # Detecta mensajes de texto
+    application.add_handler(MessageHandler(filters.PHOTO, handle_message))  # Detecta mensajes con foto
 
-telegram_app.add_handler(
-    MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post)
-)
-
-@app.post(WEBHOOK_PATH)
-async def webhook_handler(request: Request):
-    data = await request.json()
-    update = Update.de_json(data, telegram_app.bot)
-    await telegram_app.process_update(update)
-    return {"ok": True}
+    # Ejecutar el bot para recibir mensajes
+    await application.run_polling()
 
 if __name__ == "__main__":
-    uvicorn.run("lambda_function:app", host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
+    import asyncio
+    asyncio.run(main())
+
 
