@@ -1,5 +1,10 @@
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes
+from telegram.ext import (
+    ApplicationBuilder,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 import logging
 import os
 
@@ -38,9 +43,9 @@ async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+
     app.add_handler(
-        telegram.ext.MessageHandler(
-            telegram.ext.filters.UpdateType.CHANNEL_POST, handle_channel_post
-        )
+        MessageHandler(filters.UpdateType.CHANNEL_POST, handle_channel_post)
     )
+
     app.run_polling()
