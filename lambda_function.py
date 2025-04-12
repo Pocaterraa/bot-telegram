@@ -12,7 +12,8 @@ logging.basicConfig(level=logging.INFO)
 
 # IDs de los canales autorizados
 ALLOWED_CHANNEL_IDS = [
-    -1001559380018,
+    -1001600499562,
+    -1002325651346,
 ]
 
 # Firma embebida
