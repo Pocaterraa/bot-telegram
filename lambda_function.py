@@ -44,7 +44,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logging.error(f"Error al editar el mensaje: {e}")
 
 # Lambda handler
-def handler(event, context):
+def lambda_handler(event, context):
     logging.basicConfig(level=logging.INFO)
     logging.info("Evento recibido: %s", json.dumps(event))
 
