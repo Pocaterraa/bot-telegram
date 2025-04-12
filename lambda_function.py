@@ -18,8 +18,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 # Texto que se agregará al final del mensaje
 FOOTER_TEXT = (
     "\n\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-    "[➡️ 𝘿𝙊𝙒𝙉𝙇𝙊𝘼𝘿 𝙏𝙐𝙏𝙊𝙍𝙄𝘼𝙇𝙎](http://t.me/exeiolinks) "
-    "[❤️ 𝙈𝙊𝙍𝙀 𝘾𝙃𝘼𝙉𝙉𝙀𝙇𝙎](http://t.me/packscereza) "
+    "[➡️ 𝘿𝙊𝙒𝙉𝙇𝙊𝘼𝘿 𝙏𝙐𝙏𝙊𝙍𝙄𝘼𝙇𝙎](http://t.me/exeiolinks)\n"
+    "[❤️ 𝙈𝙊𝙍𝙀 𝘾𝙃𝘼𝙉𝙉𝙀𝙇𝙎](http://t.me/packscereza)\n"
     "[💛 Tired of ads? Buy the VIP and get rid of them NOW.](https://freefans.sell.app/product/telegram-membership)\n"
     "➖➖➖➖➖➖➖➖➖➖➖➖➖➖"
 )
