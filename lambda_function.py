@@ -1,76 +1,71 @@
-import os
 import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+import json
 import nest_asyncio
+import os
 import asyncio
-from fastapi import FastAPI, Request  # IMPORTAR 'Request' AQUÍ
-import uvicorn
+from telegram import Update
+from telegram.constants import ParseMode
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# Evitar el error de event loop ya que en algunos entornos (como Render), el event loop ya está corriendo
+# Aplica nest_asyncio para evitar errores de loop
 nest_asyncio.apply()
 
-# Configurar el bot
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Configura el logging
+logging.basicConfig(level=logging.INFO)
 
-# Crear la instancia de FastAPI para recibir el webhook
-app = FastAPI()
+# Firma con enlaces embebidos
+FOOTER = (
+    "➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+    '<a href="http://t.me/exeiolinks">➡️ 𝘿𝙊𝙒𝙉𝙇𝙊𝘼𝘿 𝙏𝙐𝙏𝙊𝙍𝙄𝘼𝙇𝙎</a>\n\n'
+    '<a href="http://t.me/packscereza">❤️ 𝙈𝙊𝙍𝙀 𝘾𝙃𝘼𝙉𝙉𝙀𝙇𝙎</a>\n\n'
+    '<a href="https://freefans.sell.app/product/telegram-membership">💛 Tired of ads? Buy the VIP and get rid of them NOW.</a>\n'
+    "➖➖➖➖➖➖➖➖➖➖➖➖➖➖"
+)
 
-# Ruta raíz (root)
-@app.get("/")
-async def root():
-    return {"message": "¡Bienvenido al bot! Usa el webhook para interactuar."}
+# Manejador de mensajes en canales
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.channel_post:
+        message = update.channel_post
+        if not message.text:
+            return
 
-# Función de manejo para el comando /start
-async def start(update: Update, context):
-    await update.message.reply_text("¡Hola! Soy tu bot. ¿Cómo puedo ayudarte?")
+        new_text = f"{message.text}\n\n{FOOTER}"
 
-# Función para manejar los mensajes
-async def handle_message(update: Update, context):
-    text = update.message.text
-    chat_id = update.message.chat.id
-    
-    # Si el mensaje contiene texto, agregar el enlace embebido al final
-    if text:
-        # El texto a agregar
-        additional_text = (
-            "\n\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-            "[➡️ 𝘿𝙊𝙒𝙉𝙇𝙊𝘼𝘿 𝙏𝙐𝙏𝙊𝙍𝙄𝘼𝙇𝙎](http://t.me/exeiolinks)\n\n"
-            "[❤️ 𝙈𝙊𝙍𝙀 𝘾𝙃𝘼𝙉𝙉𝙀𝙇𝙎](http://t.me/packscereza)\n\n"
-            "[💛 Tired of ads? Buy the VIP and get rid of them NOW.](https://freefans.sell.app/product/telegram-membership)\n"
-            "➖➖➖➖➖➖➖➖➖➖➖➖➖➖"
-        )
-        # Modificar el mensaje
-        await update.message.reply_text(text + additional_text)
+        try:
+            await context.bot.edit_message_text(
+                chat_id=message.chat_id,
+                message_id=message.message_id,
+                text=new_text,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+            )
+            logging.info(f"Mensaje editado en canal: {message.chat.title}")
+        except Exception as e:
+            logging.error(f"Error al editar el mensaje: {e}")
 
-# Crear la aplicación de Telegram
-async def main():
-    application = ApplicationBuilder().token("YOUR_TELEGRAM_BOT_TOKEN").build()
+# Lambda handler
+def handler(event, context):
+    logging.basicConfig(level=logging.INFO)
+    logging.info("Evento recibido: %s", json.dumps(event))
 
-    # Agregar handlers para los comandos y mensajes
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT, handle_message))
+    # Si es un webhook de Telegram
+    if "body" in event:
+        update_data = json.loads(event["body"])
 
-    # Configurar el webhook con tu dominio de webhook
-    webhook_url = "https://bot-telegram-e0lh.onrender.com/webhook"
-    await application.bot.set_webhook(webhook_url)
+        # Crear la aplicación de Telegram
+        app = ApplicationBuilder().token(os.getenv("TELEGRAM_TOKEN")).build()
+        app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_message))
 
-# Configurar FastAPI para el puerto adecuado
-@app.post("/webhook")
-async def webhook(request: Request):  # AQUÍ
-    json_str = await request.json()
-    update = Update.de_json(json_str, application.bot)
-    application.update_queue.put(update)
-    return {"status": "ok"}
+        # Usar asyncio.run para ejecutar la función asincrónica en Lambda
+        asyncio.run(run_app(app, update_data))
 
-# Configurar el servidor FastAPI para que escuche el puerto
-if __name__ == "__main__":
-    # Usar el puerto asignado por Render (o 8000 como fallback)
-    port = int(os.getenv("PORT", 8000))  # Render asignará un puerto automáticamente a través de la variable de entorno 'PORT'
-    
-    # Ejecutar la aplicación FastAPI
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    return {
+        "statusCode": 200,
+        "body": json.dumps("OK")
+    }
 
-    # Ejecutar el bot en el evento loop asíncrono
-    asyncio.run(main())
+async def run_app(app, update_data):
+    await app.initialize()
+    await app.process_update(Update.de_json(update_data, app.bot))
+    await app.shutdown()
+
