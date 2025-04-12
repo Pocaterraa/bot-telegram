@@ -4,8 +4,8 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 import nest_asyncio
 import asyncio
-from fastapi import FastAPI
-from telegram.ext import Updater
+from fastapi import FastAPI, Request  # IMPORTAR 'Request' AQUÍ
+import uvicorn
 
 # Evitar el error de event loop ya que en algunos entornos (como Render), el event loop ya está corriendo
 nest_asyncio.apply()
@@ -53,7 +53,7 @@ async def main():
 
 # Configurar FastAPI para el puerto adecuado
 @app.post("/webhook")
-async def webhook(request: Request):
+async def webhook(request: Request):  # AQUÍ
     json_str = await request.json()
     update = Update.de_json(json_str, application.bot)
     application.update_queue.put(update)
@@ -61,8 +61,6 @@ async def webhook(request: Request):
 
 # Configurar el servidor FastAPI para que escuche el puerto
 if __name__ == "__main__":
-    import uvicorn
-
     # Usar el puerto asignado por Render (o 8000 como fallback)
     port = int(os.getenv("PORT", 8000))  # Render asignará un puerto automáticamente a través de la variable de entorno 'PORT'
     
@@ -71,4 +69,3 @@ if __name__ == "__main__":
 
     # Ejecutar el bot en el evento loop asíncrono
     asyncio.run(main())
-
