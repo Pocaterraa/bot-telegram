@@ -1,70 +1,46 @@
-import logging
-import json
-import nest_asyncio
-import os
-import asyncio
 from telegram import Update
-from telegram.constants import ParseMode
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, ContextTypes
+import logging
+import os
 
-# Aplica nest_asyncio para evitar errores de loop
-nest_asyncio.apply()
-
-# Configura el logging
+# Configurar logging
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Firma con enlaces embebidos
-FOOTER = (
-    "➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
-    '<a href="http://t.me/exeiolinks">➡️ 𝘿𝙊𝙒𝙉𝙇𝙊𝘼𝘿 𝙏𝙐𝙏𝙊𝙍𝙄𝘼𝙇𝙎</a>\n\n'
-    '<a href="http://t.me/packscereza">❤️ 𝙈𝙊𝙍𝙀 𝘾𝙃𝘼𝙉𝙉𝙀𝙇𝙎</a>\n\n'
-    '<a href="https://freefans.sell.app/product/telegram-membership">💛 Tired of ads? Buy the VIP and get rid of them NOW.</a>\n'
+# Token del bot desde las variables de entorno
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+# Texto que se agregará al final del mensaje
+FOOTER_TEXT = (
+    "\n\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n"
+    "[➡️ 𝘿𝙊𝙒𝙉𝙇𝙊𝘼𝘿 𝙏𝙐𝙏𝙊𝙍𝙄𝘼𝙇𝙎](http://t.me/exeiolinks) "
+    "[❤️ 𝙈𝙊𝙍𝙀 𝘾𝙃𝘼𝙉𝙉𝙀𝙇𝙎](http://t.me/packscereza) "
+    "[💛 Tired of ads? Buy the VIP and get rid of them NOW.](https://freefans.sell.app/product/telegram-membership)\n"
     "➖➖➖➖➖➖➖➖➖➖➖➖➖➖"
 )
 
-# Manejador de mensajes en canales
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.channel_post:
+async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
         message = update.channel_post
-        if not message.text:
+        if not message or not message.text:
             return
 
-        new_text = f"{message.text}\n\n{FOOTER}"
+        new_text = f"{message.text}{FOOTER_TEXT}"
+        await context.bot.edit_message_text(
+            chat_id=message.chat_id,
+            message_id=message.message_id,
+            text=new_text,
+            parse_mode="Markdown"
+        )
+        logger.info("Mensaje editado correctamente")
+    except Exception as e:
+        logger.error(f"Error al editar el mensaje: {e}")
 
-        try:
-            await context.bot.edit_message_text(
-                chat_id=message.chat_id,
-                message_id=message.message_id,
-                text=new_text,
-                parse_mode=ParseMode.HTML,
-                disable_web_page_preview=True,
-            )
-            logging.info(f"Mensaje editado en canal: {message.chat.title}")
-        except Exception as e:
-            logging.error(f"Error al editar el mensaje: {e}")
-
-# Lambda handler
-def handler(event, context):
-    logging.basicConfig(level=logging.INFO)
-    logging.info("Evento recibido: %s", json.dumps(event))
-
-    # Si es un webhook de Telegram
-    if "body" in event:
-        update_data = json.loads(event["body"])
-
-        # Crear la aplicación de Telegram
-        app = ApplicationBuilder().token(os.getenv("TELEGRAM_TOKEN")).build()
-        app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_message))
-
-        # Usar asyncio.run para ejecutar la función asincrónica en Lambda
-        asyncio.run(run_app(app, update_data))
-
-    return {
-        "statusCode": 200,
-        "body": json.dumps("OK")
-    }
-
-async def run_app(app, update_data):
-    await app.initialize()
-    await app.process_update(Update.de_json(update_data, app.bot))
-    await app.shutdown()
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(
+        telegram.ext.MessageHandler(
+            telegram.ext.filters.UpdateType.CHANNEL_POST, handle_channel_post
+        )
+    )
+    app.run_polling()
