@@ -17,6 +17,11 @@ logger = logging.getLogger(__name__)
 # Crear la instancia de FastAPI para recibir el webhook
 app = FastAPI()
 
+# Ruta raíz (root)
+@app.get("/")
+async def root():
+    return {"message": "¡Bienvenido al bot! Usa el webhook para interactuar."}
+
 # Función de manejo para el comando /start
 async def start(update: Update, context):
     await update.message.reply_text("¡Hola! Soy tu bot. ¿Cómo puedo ayudarte?")
